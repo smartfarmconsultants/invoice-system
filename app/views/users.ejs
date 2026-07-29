@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Users — Invoice System</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <%- include('_topbar', { user }) %>
+  <main>
+    <h2>User Accounts</h2>
+
+    <% if (newPassword) { %>
+      <div class="credentials-box">
+        A new account was created for <%= newPassword.email %>.<br/>
+        Temporary password (shown once — copy it now): <strong><%= newPassword.tempPassword %></strong><br/>
+        They'll be required to set their own password on first login.
+      </div>
+    <% } %>
+
+    <div class="card">
+      <form method="POST" action="/users">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+        <label>Full Name</label>
+        <input type="text" name="full_name" required />
+        <label>Email</label>
+        <input type="email" name="email" required />
+        <label>Role</label>
+        <select name="role" required>
+          <option value="clerk">Clerk</option>
+          <option value="manager">Manager</option>
+          <option value="admin">Admin</option>
+        </select>
+        <button type="submit">Create Account</button>
+      </form>
+    </div>
+
+    <table>
+      <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+      <% users.forEach(u => { %>
+        <tr>
+          <td><%= u.full_name %></td>
+          <td><%= u.email %></td>
+          <td><%= u.role %></td>
+          <td><%= u.status ? 'Active' : 'Disabled' %></td>
+          <td>
+            <% if (u.status) { %>
+            <form method="POST" action="/users/<%= u.id %>/disable" style="display:inline">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+              <button type="submit" class="btn secondary" style="margin:0; padding:4px 10px; font-size:0.8rem;">Disable</button>
+            </form>
+            <% } %>
+          </td>
+        </tr>
+      <% }) %>
+      </tbody>
+    </table>
+  </main>
+</body>
+</html>

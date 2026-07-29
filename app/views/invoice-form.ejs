@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>New Invoice — Invoice System</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <%- include('_topbar', { user }) %>
+  <main>
+    <h2>New Invoice</h2>
+    <div class="card">
+      <form method="POST" action="/invoices">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+        <label>Customer</label>
+        <select name="customer_id" required>
+          <% customers.forEach(c => { %>
+            <option value="<%= c.id %>"><%= c.customer_name %></option>
+          <% }) %>
+        </select>
+
+        <label>Invoice Date</label>
+        <input type="date" name="invoice_date" required value="<%= new Date().toISOString().slice(0,10) %>" />
+
+        <label>Due Date</label>
+        <input type="date" name="due_date" />
+
+        <label>VAT Rate (%) — already included in each unit price below, not added on top</label>
+        <input type="number" step="0.01" name="tax_rate" value="16" />
+
+        <h3 style="margin-top:20px;">Line Items</h3>
+        <p style="color:#5c6570; font-size:0.85rem; margin-top:-4px;">
+          Enter the price customers actually pay per item (VAT-inclusive). The VAT portion will be
+          extracted automatically for the invoice breakdown — it will not be added to your total.
+        </p>
+        <div id="items">
+          <div class="item-row">
+            <input type="text" name="descriptions" placeholder="Description" required />
+            <input type="number" step="0.01" name="quantities" placeholder="Qty" required />
+            <input type="number" step="0.01" name="unit_prices" placeholder="Unit Price" required />
+          </div>
+        </div>
+        <button type="button" class="btn secondary" onclick="addRow()">+ Add Line</button>
+        <br/>
+        <button type="submit">Create Invoice</button>
+      </form>
+    </div>
+  </main>
+  <script>
+    function addRow() {
+      const wrap = document.getElementById('items');
+      const row = document.createElement('div');
+      row.className = 'item-row';
+      row.innerHTML = `
+        <input type="text" name="descriptions" placeholder="Description" required />
+        <input type="number" step="0.01" name="quantities" placeholder="Qty" required />
+        <input type="number" step="0.01" name="unit_prices" placeholder="Unit Price" required />
+      `;
+      wrap.appendChild(row);
+    }
+  </script>
+</body>
+</html>

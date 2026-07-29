@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SmartFarm Consultants Kenya — Invoicing</title>
+<style>
+  :root {
+    --ink: #1b1f23;
+    --muted: #5c6570;
+    --accent: #1e6f5c;
+    --bg: #fafaf7;
+    --card: #ffffff;
+    --border: #e4e2db;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    line-height: 1.55;
+  }
+  header {
+    padding: 22px 6vw;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+  }
+  header .brand { font-weight: 700; font-size: 1.15rem; letter-spacing: -0.01em; }
+  header nav a {
+    margin-left: 24px;
+    text-decoration: none;
+    color: var(--ink);
+    font-size: 0.95rem;
+  }
+  .login-btn {
+    background: var(--accent);
+    color: #fff !important;
+    padding: 9px 18px;
+    border-radius: 6px;
+  }
+  .hero {
+    padding: 90px 6vw 70px;
+    max-width: 760px;
+  }
+  .hero h1 { font-size: 2.6rem; margin: 0 0 16px; letter-spacing: -0.02em; }
+  .hero p { color: var(--muted); font-size: 1.1rem; max-width: 560px; }
+  .hero .cta { margin-top: 28px; }
+  .cta a {
+    display: inline-block;
+    background: var(--accent);
+    color: #fff;
+    text-decoration: none;
+    padding: 12px 22px;
+    border-radius: 6px;
+    font-weight: 600;
+  }
+  section.features {
+    padding: 0 6vw 90px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 24px;
+    max-width: 1100px;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 22px;
+  }
+  .card h3 { margin: 0 0 8px; font-size: 1rem; }
+  .card p { margin: 0; color: var(--muted); font-size: 0.92rem; }
+  footer {
+    padding: 30px 6vw;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+</style>
+</head>
+<body>
+  <header>
+    <div class="brand">SmartFarm Consultants Kenya</div>
+    <nav>
+      <a href="#features">Features</a>
+      <!-- Points to the separately-hosted dynamic invoice app -->
+      <a class="login-btn" href="https://invoices.yourcompany.com/login">Client / Staff Login</a>
+    </nav>
+  </header>
+
+  <section class="hero">
+    <h1>Simple, secure invoicing for our clients.</h1>
+    <p>
+      This public page is static and read-only — it carries no login
+      forms and no database access. All invoice records, PDF exports,
+      and account activity live in our secured invoice system, reachable
+      only by authenticated staff.
+    </p>
+    <div class="cta">
+      <a href="https://invoices.yourcompany.com/login">Go to Invoice System →</a>
+    </div>
+  </section>
+
+  <section class="features" id="features">
+    <div class="card">
+      <h3>Role-based access</h3>
+      <p>Administrators, managers, and clerks each see only what their role permits.</p>
+    </div>
+    <div class="card">
+      <h3>PDF invoices</h3>
+      <p>Every invoice can be exported as a professionally formatted PDF on demand.</p>
+    </div>
+    <div class="card">
+      <h3>Full audit trail</h3>
+      <p>Every invoice creation and edit is logged with the responsible user and timestamp.</p>
+    </div>
+  </section>
+
+  <footer>
+    © 2026 SmartFarm Consultants Kenya. This page is served statically and separately from the invoice system for security isolation.
+  </footer>
+</body>
+</html>

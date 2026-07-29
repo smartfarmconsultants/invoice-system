@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Invoice <%= invoice.invoice_number %></title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <%- include('_topbar', { user }) %>
+  <main>
+    <img src="/letterhead.png" alt="Company letterhead" style="max-width:100%; margin-bottom:20px;" />
+    <h2>Invoice <%= invoice.invoice_number %></h2>
+    <a class="btn" href="/invoices/<%= invoice.id %>/pdf">Download PDF</a>
+
+    <div class="card" style="margin-top:20px;">
+      <p><strong>Customer:</strong> <%= invoice.customer_name %></p>
+      <p><strong>Date:</strong> <%= new Date(invoice.invoice_date).toLocaleDateString() %>
+         &nbsp; <strong>Due:</strong> <%= invoice.due_date ? new Date(invoice.due_date).toLocaleDateString() : '-' %></p>
+      <p><strong>Status:</strong> <%= invoice.status %></p>
+
+      <table>
+        <thead><tr><th>Description</th><th>Qty</th><th>Unit Price</th><th>Amount</th></tr></thead>
+        <tbody>
+        <% items.forEach(it => { %>
+          <tr>
+            <td><%= it.description %></td>
+            <td><%= it.quantity %></td>
+            <td><%= Number(it.unit_price).toLocaleString() %></td>
+            <td><%= Number(it.amount).toLocaleString() %></td>
+          </tr>
+        <% }) %>
+        </tbody>
+      </table>
+
+      <p style="text-align:right; margin-top:16px;">
+        Subtotal (excl. VAT): <%= Number(invoice.subtotal).toLocaleString() %><br/>
+        VAT: <%= Number(invoice.tax).toLocaleString() %><br/>
+        <strong>Total (VAT inclusive): <%= Number(invoice.total).toLocaleString() %></strong>
+      </p>
+    </div>
+  </main>
+</body>
+</html>

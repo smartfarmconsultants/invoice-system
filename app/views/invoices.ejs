@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Invoices — Invoice System</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <%- include('_topbar', { user }) %>
+  <main>
+    <h2>Invoices</h2>
+    <a class="btn" href="/invoices/new">+ New Invoice</a>
+    <table>
+      <thead><tr><th>Number</th><th>Customer</th><th>Date</th><th>Status</th><th>Total</th><th></th></tr></thead>
+      <tbody>
+      <% invoices.forEach(inv => { %>
+        <tr>
+          <td><%= inv.invoice_number %></td>
+          <td><%= inv.customer_name %></td>
+          <td><%= new Date(inv.invoice_date).toLocaleDateString() %></td>
+          <td><%= inv.status %></td>
+          <td><%= Number(inv.total).toLocaleString() %></td>
+          <td>
+            <a href="/invoices/<%= inv.id %>">View</a> ·
+            <a href="/invoices/<%= inv.id %>/pdf">PDF</a>
+          </td>
+        </tr>
+      <% }) %>
+      </tbody>
+    </table>
+  </main>
+</body>
+</html>

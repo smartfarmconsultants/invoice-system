@@ -1,0 +1,13 @@
+<div class="topbar">
+  <div class="brand">Invoice System</div>
+  <nav>
+    <a href="/dashboard">Dashboard</a>
+    <a href="/invoices">Invoices</a>
+    <a href="/customers">Customers</a>
+    <% if (user.role === 'admin') { %><a href="/users">Users</a><% } %>
+    <span class="role-badge"><%= user.fullName %> · <%= user.role %></span>
+    <form method="POST" action="/logout" style="display:inline">
+      <a href="#" onclick="this.closest('form').submit(); return false;">Log out</a>
+    </form>
+  </nav>
+</div>

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Dashboard — Invoice System</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <%- include('_topbar', { user }) %>
+  <main>
+    <h2>Welcome, <%= user.fullName %></h2>
+
+    <div class="stats">
+      <div class="stat">
+        <div class="num"><%= totals.count %></div>
+        <div class="label">Invoices</div>
+      </div>
+      <div class="stat">
+        <div class="num">KES <%= Number(totals.total).toLocaleString() %></div>
+        <div class="label">Total value</div>
+      </div>
+    </div>
+
+    <a class="btn" href="/invoices/new">+ New Invoice</a>
+
+    <h3 style="margin-top:28px;">Recent Invoices</h3>
+    <table>
+      <thead><tr><th>Number</th><th>Customer</th><th>Date</th><th>Total</th><th></th></tr></thead>
+      <tbody>
+      <% invoices.forEach(inv => { %>
+        <tr>
+          <td><%= inv.invoice_number %></td>
+          <td><%= inv.customer_name %></td>
+          <td><%= new Date(inv.invoice_date).toLocaleDateString() %></td>
+          <td><%= Number(inv.total).toLocaleString() %></td>
+          <td><a href="/invoices/<%= inv.id %>">View</a></td>
+        </tr>
+      <% }) %>
+      </tbody>
+    </table>
+  </main>
+</body>
+</html>

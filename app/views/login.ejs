@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Login — Invoice System</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="auth-wrap">
+    <h2>Invoice System Login</h2>
+    <div class="card">
+      <form method="POST" action="/login">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+        <label>Email</label>
+        <input type="email" name="email" required autofocus />
+        <label>Password</label>
+        <input type="password" name="password" required />
+        <% if (error) { %><div class="error"><%= error %></div><% } %>
+        <button type="submit">Log In</button>
+      </form>
+    </div>
+  </div>
+</body>
+</html>
