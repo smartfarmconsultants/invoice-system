@@ -37,6 +37,14 @@ label { display: block; font-size: 0.85rem; margin: 12px 0 4px; color: var(--mut
 input, select {
   width: 100%; padding: 9px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.95rem;
 }
+.password-field { position: relative; }
+.password-field input { padding-right: 60px; }
+.password-field .toggle-visibility {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; color: var(--accent); font-size: 0.8rem;
+  font-weight: 600; padding: 4px 8px; margin: 0; cursor: pointer;
+}
+.password-field .toggle-visibility:hover { text-decoration: underline; }
 button, .btn {
   display: inline-block; background: var(--accent); color: #fff; border: none; padding: 10px 18px;
   border-radius: 6px; font-weight: 600; cursor: pointer; text-decoration: none; margin-top: 16px; font-size: 0.92rem;

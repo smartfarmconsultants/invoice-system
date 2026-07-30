@@ -14,12 +14,27 @@
         <label>Email</label>
         <input type="email" name="email" required autofocus />
         <label>Password</label>
-        <input type="password" name="password" required />
+        <div class="password-field">
+          <input id="loginPassword" type="password" name="password" required />
+          <button type="button" class="toggle-visibility" data-target="loginPassword" aria-label="Show password">Show</button>
+        </div>
         <% if (error) { %><div class="error"><%= error %></div><% } %>
         <button type="submit">Log In</button>
       </form>
     </div>
   </div>
+
+  <script>
+    document.querySelectorAll('.toggle-visibility').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const input = document.getElementById(btn.dataset.target);
+        const showing = input.type === 'text';
+        input.type = showing ? 'password' : 'text';
+        btn.textContent = showing ? 'Show' : 'Hide';
+        btn.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
+      });
+    });
+  </script>
   <%- include('_footer') %>
 </body>
 </html>

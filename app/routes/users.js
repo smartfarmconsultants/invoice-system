@@ -1,18 +1,11 @@
 const express = require('express');
-const crypto = require('crypto');
 const bcrypt = require('bcrypt');
 const db = require('../db');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { logAction } = require('../db/audit');
+const { generatePassword } = require('../lib/password');
 
 const router = express.Router();
-
-function generatePassword(length = 16) {
-  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%^&*';
-  return Array.from(crypto.randomFillSync(new Uint32Array(length)))
-    .map((n) => chars[n % chars.length])
-    .join('');
-}
 
 router.get('/users', requireAuth, requireRole('admin'), async (req, res) => {
   const { rows } = await db.query('SELECT id, full_name, email, role, status, created_at FROM users ORDER BY created_at ASC');

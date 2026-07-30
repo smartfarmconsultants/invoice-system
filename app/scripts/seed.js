@@ -6,19 +6,11 @@
 //      credentials.txt so you can hand them to the right people
 //   4. flagged must_change_password = true, forcing a reset on first login
 require('dotenv').config();
-const crypto = require('crypto');
 const bcrypt = require('bcrypt');
 const fs = require('fs');
 const path = require('path');
 const { pool } = require('../db');
-
-function generatePassword(length = 16) {
-  // Unambiguous charset (no 0/O, 1/l/I) so it's easy to read/type once.
-  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%^&*';
-  return Array.from(crypto.randomFillSync(new Uint32Array(length)))
-    .map((n) => chars[n % chars.length])
-    .join('');
-}
+const { generatePassword } = require('../lib/password');
 
 const ACCOUNTS = [
   {

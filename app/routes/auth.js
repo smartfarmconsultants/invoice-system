@@ -4,6 +4,7 @@ const rateLimit = require('express-rate-limit');
 const db = require('../db');
 const { logAction } = require('../db/audit');
 const { requireAuth } = require('../middleware/auth');
+const { validatePassword } = require('../lib/password');
 
 const router = express.Router();
 
@@ -78,11 +79,9 @@ router.get('/change-password', requireAuth, (req, res) => {
 router.post('/change-password', requireAuth, async (req, res) => {
   const { newPassword, confirmPassword } = req.body;
 
-  if (!newPassword || newPassword.length < 10) {
-    return res.render('change-password', {
-      error: 'Password must be at least 10 characters.',
-      csrfToken: req.csrfToken()
-    });
+  const check = validatePassword(newPassword);
+  if (!check.valid) {
+    return res.render('change-password', { error: check.message, csrfToken: req.csrfToken() });
   }
   if (newPassword !== confirmPassword) {
     return res.render('change-password', {
