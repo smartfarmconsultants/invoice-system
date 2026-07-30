@@ -45,6 +45,9 @@ async function main() {
     ''
   ];
 
+  console.log('\n================ GENERATED LOGIN CREDENTIALS ================');
+  console.log('Copy these now — they will not be shown again.\n');
+
   for (const acct of ACCOUNTS) {
     const plainPassword = generatePassword();
     const hash = await bcrypt.hash(plainPassword, 12);
@@ -63,13 +66,24 @@ async function main() {
     lines.push(`Temporary password: ${plainPassword}`);
     lines.push('');
 
-    console.log(`Created/updated ${acct.role} account: ${acct.email}`);
+    console.log(`Role: ${acct.role}`);
+    console.log(`Email: ${acct.email}`);
+    console.log(`Temporary password: ${plainPassword}`);
+    console.log('');
   }
 
-  const outPath = path.join(__dirname, '..', 'credentials.txt');
-  fs.writeFileSync(outPath, lines.join('\n'), { mode: 0o600 });
-  console.log(`\nPasswords written once to ${outPath} (gitignored).`);
-  console.log('Share them securely with each user, then delete that file.');
+  console.log('================================================================\n');
+
+  // Also write to a local file, useful when running with shell/file access
+  // (e.g. on your own machine). On hosts without shell access this file is
+  // unreachable, which is why the credentials are also printed above.
+  try {
+    const outPath = path.join(__dirname, '..', 'credentials.txt');
+    fs.writeFileSync(outPath, lines.join('\n'), { mode: 0o600 });
+    console.log(`(Also written to ${outPath} where the filesystem is reachable.)`);
+  } catch (err) {
+    console.log('(Could not write credentials.txt in this environment — use the printed output above instead.)');
+  }
 
   await pool.end();
 }
