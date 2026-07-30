@@ -44,6 +44,15 @@ app.use(
 // CSRF protection on all state-changing form submissions.
 app.use(csurf());
 
+// Expose the CSRF token to every view automatically (res.locals is merged
+// into template locals by Express), so shared partials like the topbar's
+// logout form always have a valid token without every route needing to
+// remember to pass it explicitly.
+app.use((req, res, next) => {
+  res.locals.csrfToken = req.csrfToken();
+  next();
+});
+
 app.get('/', (req, res) => res.redirect('/login'));
 
 app.use(authRoutes);

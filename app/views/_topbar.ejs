@@ -8,6 +8,7 @@
     <a href="/change-password">Change Password</a>
     <span class="role-badge"><%= user.fullName %> · <%= user.role %></span>
     <form method="POST" action="/logout" style="display:inline">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
       <a href="#" onclick="this.closest('form').submit(); return false;">Log out</a>
     </form>
   </nav>
