@@ -5,6 +5,7 @@
     <a href="/invoices">Invoices</a>
     <a href="/customers">Customers</a>
     <% if (user.role === 'admin') { %><a href="/users">Users</a><% } %>
+    <a href="/change-password">Change Password</a>
     <span class="role-badge"><%= user.fullName %> · <%= user.role %></span>
     <form method="POST" action="/logout" style="display:inline">
       <a href="#" onclick="this.closest('form').submit(); return false;">Log out</a>

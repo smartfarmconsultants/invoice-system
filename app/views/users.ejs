@@ -36,26 +36,59 @@
     </div>
 
     <table>
-      <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th></th></tr></thead>
+      <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th style="min-width:260px;">Actions</th></tr></thead>
       <tbody>
       <% users.forEach(u => { %>
         <tr>
-          <td><%= u.full_name %></td>
-          <td><%= u.email %></td>
-          <td><%= u.role %></td>
+          <td><input form="edit-<%= u.id %>" type="text" name="full_name" value="<%= u.full_name %>" style="width:140px;" /></td>
+          <td><input form="edit-<%= u.id %>" type="email" name="email" value="<%= u.email %>" style="width:180px;" /></td>
+          <td>
+            <select form="edit-<%= u.id %>" name="role">
+              <option value="clerk" <%= u.role === 'clerk' ? 'selected' : '' %>>Clerk</option>
+              <option value="manager" <%= u.role === 'manager' ? 'selected' : '' %>>Manager</option>
+              <option value="admin" <%= u.role === 'admin' ? 'selected' : '' %>>Admin</option>
+            </select>
+          </td>
           <td><%= u.status ? 'Active' : 'Disabled' %></td>
           <td>
+            <button form="edit-<%= u.id %>" type="submit" style="margin:0; padding:4px 10px; font-size:0.8rem;">Save</button>
+            <button form="reset-<%= u.id %>" type="submit" class="btn secondary" style="margin:0; padding:4px 10px; font-size:0.8rem;">Reset Password</button>
             <% if (u.status) { %>
-            <form method="POST" action="/users/<%= u.id %>/disable" style="display:inline">
-              <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
-              <button type="submit" class="btn secondary" style="margin:0; padding:4px 10px; font-size:0.8rem;">Disable</button>
-            </form>
+              <button form="disable-<%= u.id %>" type="submit" class="btn secondary" style="margin:0; padding:4px 10px; font-size:0.8rem;">Disable</button>
+            <% } else { %>
+              <button form="enable-<%= u.id %>" type="submit" style="margin:0; padding:4px 10px; font-size:0.8rem;">Enable</button>
             <% } %>
           </td>
         </tr>
       <% }) %>
       </tbody>
     </table>
+
+    <!-- Forms live here, outside the <table> entirely (a <form> is not valid
+         inside <tbody>/<tr>) and are wired to the buttons/inputs above via
+         the HTML5 form="..." attribute. -->
+    <% users.forEach(u => { %>
+      <form id="edit-<%= u.id %>" method="POST" action="/users/<%= u.id %>/edit">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      </form>
+      <form id="reset-<%= u.id %>" method="POST" action="/users/<%= u.id %>/reset-password">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      </form>
+      <% if (u.status) { %>
+        <form id="disable-<%= u.id %>" method="POST" action="/users/<%= u.id %>/disable">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+        </form>
+      <% } else { %>
+        <form id="enable-<%= u.id %>" method="POST" action="/users/<%= u.id %>/enable">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+        </form>
+      <% } %>
+    <% }) %>
+
+    <p style="color:#5c6570; font-size:0.82rem; margin-top:10px;">
+      "Reset Password" generates a new temporary password (shown once above) and forces that user to set their own on next login.
+    </p>
   </main>
+  <%- include('_footer') %>
 </body>
 </html>

@@ -113,6 +113,12 @@ async function streamInvoicePdf(res, invoice, items, company) {
   const qrSize = 60; // small on purpose — just enough to scan cleanly
   doc.image(qrBuffer, 200, doc.y - 12, { width: qrSize, height: qrSize });
 
+  // Credit line, pinned to the very bottom of the page regardless of how
+  // much content is above it.
+  const footerY = doc.page.height - doc.page.margins.bottom - 12;
+  doc.fontSize(8).fillColor('#999')
+    .text('Designed by STAS  ·  Powered by Infinity Champ', 50, footerY, { width: 500, align: 'center' });
+
   doc.end();
 }
 
