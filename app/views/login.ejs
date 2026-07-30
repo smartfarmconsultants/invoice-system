@@ -4,10 +4,12 @@
   <meta charset="UTF-8" />
   <title>Login — Invoice System</title>
   <link rel="stylesheet" href="/style.css" />
+  <link rel="icon" type="image/png" href="/logo-icon.png" />
 </head>
 <body>
   <div class="auth-wrap">
-    <h2>Invoice System Login</h2>
+    <img src="/logo-icon.png" alt="SmartFarm Consultants Kenya" style="display:block; margin:0 auto 14px; width:64px; height:auto;" />
+    <h2 style="text-align:center;">Invoice System Login</h2>
     <div class="card">
       <form method="POST" action="/login">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
