@@ -1,0 +1,35 @@
+name: Database Backup
+
+# Runs automatically every day at 02:00 UTC, and can also be triggered
+# manually from the Actions tab (Run workflow button) any time you want an
+# on-demand backup — e.g. right before a risky change.
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Dump database
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_EXTERNAL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "DATABASE_URL_EXTERNAL secret is not set. See README for setup instructions."
+            exit 1
+          fi
+          pg_dump "$DATABASE_URL" --no-owner --no-privileges -F c -f backup.dump
+
+      - name: Upload backup as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: invoice-db-backup-${{ github.run_id }}
+          path: backup.dump
+          # Artifacts older than this are automatically deleted by GitHub.
+          # Adjust if you need a longer retention window.
+          retention-days: 90

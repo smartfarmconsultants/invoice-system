@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "migrate": "node scripts/migrate.js",
-    "seed": "node scripts/seed.js"
+    "seed": "node scripts/seed.js",
+    "clear-test-data": "node scripts/clear-test-data.js"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",

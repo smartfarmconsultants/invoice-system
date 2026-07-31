@@ -99,21 +99,78 @@ If your HostPinnacle plan only offers MySQL (not PostgreSQL), use
 `db/schema.mysql.sql` and set `DB_DRIVER=mysql` in `.env` — the app's
 query layer (`app/db/index.js`) supports both.
 
-## 5. Security features already implemented
+## 6. Automated backups (GitHub Actions)
+
+Since the free Render Postgres tier has no built-in backups, this repo
+includes `.github/workflows/backup.yml`, which runs `pg_dump` against your
+database automatically every day at 02:00 UTC (and can be triggered
+manually from GitHub's **Actions** tab any time) and stores the result as
+a downloadable workflow artifact, kept for 90 days.
+
+**One-time setup:**
+
+1. On your Render Postgres dashboard, copy the **External Database URL**
+   (not "Internal" — GitHub Actions runs outside Render's private network,
+   so it needs the externally-reachable connection string).
+2. In your GitHub repo: **Settings → Secrets and variables → Actions →
+   New repository secret**.
+   - Name: `DATABASE_URL_EXTERNAL`
+   - Value: paste the External Database URL
+3. That's it — the workflow will run automatically from then on.
+
+**To restore from a backup:**
+1. Go to your repo's **Actions** tab → the latest successful "Database
+   Backup" run → download the `invoice-db-backup-...` artifact and unzip
+   it (you'll get a `backup.dump` file).
+2. Run (from a machine with `pg_restore` installed, e.g. locally):
+   ```
+   pg_restore --clean --no-owner -d "<your DATABASE_URL>" backup.dump
+   ```
+
+This is a reasonable, zero-cost safety net — but note it's still less
+robust than a paid Postgres plan's built-in point-in-time recovery. If
+this system starts handling real client billing at any volume, upgrading
+to Render's Basic Postgres tier ($6/mo) for proper managed backups is
+worth it.
+
+## 7. Security features already implemented
 
 - Passwords hashed with **bcrypt** (cost factor 12), never stored in plaintext.
 - Sessions stored server-side (`connect-pg-simple` / MySQL session store), signed with `SESSION_SECRET`, `httpOnly` + `secure` cookies in production.
 - **CSRF protection** on all state-changing forms.
 - **Parameterized queries** everywhere (no string-concatenated SQL).
 - **Role-based access control** middleware (`admin`, `manager`, `clerk`) enforced on every route, not just hidden in the UI.
-- **Audit log** table recording who created/edited/deleted each invoice.
+- **Audit log** recording every login, invoice creation/edit/status change, customer edit/delete, and user management action — viewable in-app at `/audit-log` (admin only).
 - Login rate limiting (5 attempts / 15 min per IP) to slow brute force.
-- Forced password change on first login for seeded accounts.
+- Forced password change on first login for seeded/reset accounts.
+- Password strength policy: 8+ characters, requires upper/lowercase, a number, and a symbol.
 - `.env` / credentials are gitignored — nothing sensitive is committed.
 
-## 6. Still required from you before going live
+## 8. Feature overview
+
+- **Sequential invoice numbers** (`INV-0001`, `INV-0002`, ...) derived from
+  the database's own row id, assigned right after each invoice is created —
+  gap-free and safely unique even with concurrent users.
+- **Invoice reference & QR code** — every invoice shows a reference line
+  (number, date, time, amount) and a scannable QR code encoding the same
+  details, for quick verification.
+- **Invoice status workflow** — draft → sent → paid → overdue → void,
+  changeable from either the invoice list or the invoice detail page
+  (admin/manager only).
+- **Admin/manager invoice editing** — line items, customer, and dates can
+  be corrected after creation; totals recalculate automatically. The
+  invoice number itself never changes once assigned.
+- **Customer editing & deletion** — inline edit on the customers page;
+  deletion is blocked with a clear message if a customer still has
+  invoices on file (prevents orphaned records).
+- **Search & filtering** — invoices by number/customer name and status;
+  customers by name/phone/email.
+- **Pagination** — both invoice and customer lists paginate at 15 rows
+  per page so they stay usable as your data grows.
+
+## 9. Still worth doing
 
 - A real HTTPS certificate (Render provides this automatically; on HostPinnacle enable AutoSSL/Let's Encrypt in cPanel).
 - Point DNS for your domain at whichever host you choose.
-- Set up automated daily database backups (Render Postgres has a backup add-on; HostPinnacle cPanel has a Backup Wizard).
 - Optionally enable 2FA — a `TODO` stub is left in `routes/auth.js` for adding TOTP (e.g. via the `otplib` package) if you want it later.
+- Emailing invoice PDFs directly to customers, rather than download-then-send-manually.

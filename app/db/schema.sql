@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS customers (
 
 CREATE TABLE IF NOT EXISTS invoices (
     id              SERIAL PRIMARY KEY,
-    invoice_number  VARCHAR(30) NOT NULL UNIQUE,
+    invoice_number  VARCHAR(30) UNIQUE,
     customer_id     INTEGER NOT NULL REFERENCES customers(id),
     invoice_date    DATE NOT NULL DEFAULT CURRENT_DATE,
     due_date        DATE,
@@ -37,6 +37,11 @@ CREATE TABLE IF NOT EXISTS invoices (
     created_at      TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMP NOT NULL DEFAULT NOW()
 );
+
+-- Safe to re-run on an already-deployed database: relaxes invoice_number to
+-- nullable so it can be assigned right after the row's id is known, which is
+-- how we generate sequential INV-0001-style numbers instead of timestamps.
+ALTER TABLE invoices ALTER COLUMN invoice_number DROP NOT NULL;
 
 CREATE TABLE IF NOT EXISTS invoice_items (
     id          SERIAL PRIMARY KEY,
@@ -66,3 +71,8 @@ CREATE TABLE IF NOT EXISTS "session" (
 )
 WITH (OIDS=FALSE);
 CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire");
+
+CREATE INDEX IF NOT EXISTS idx_invoices_customer ON invoices(customer_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_created_by ON invoices(created_by);
+CREATE INDEX IF NOT EXISTS idx_invoice_items_invoice ON invoice_items(invoice_id);
+CREATE INDEX IF NOT EXISTS idx_audit_user ON audit_log(user_id);

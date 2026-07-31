@@ -11,13 +11,31 @@
   <main>
     <img src="/letterhead.png" alt="Company letterhead" style="max-width:100%; margin-bottom:20px;" />
     <h2>Invoice <%= invoice.invoice_number %></h2>
+    <p style="color:#5c6570; font-size:0.85rem;"><%= reference.displayText %></p>
+
     <a class="btn" href="/invoices/<%= invoice.id %>/pdf">Download PDF</a>
+    <% if (user.role === 'admin' || user.role === 'manager') { %>
+      <a class="btn secondary" href="/invoices/<%= invoice.id %>/edit">Edit Invoice</a>
+    <% } %>
 
     <div class="card" style="margin-top:20px;">
       <p><strong>Customer:</strong> <%= invoice.customer_name %></p>
       <p><strong>Date:</strong> <%= new Date(invoice.invoice_date).toLocaleDateString() %>
          &nbsp; <strong>Due:</strong> <%= invoice.due_date ? new Date(invoice.due_date).toLocaleDateString() : '-' %></p>
-      <p><strong>Status:</strong> <%= invoice.status %></p>
+
+      <% if (user.role === 'admin' || user.role === 'manager') { %>
+        <form method="POST" action="/invoices/<%= invoice.id %>/status" style="margin:8px 0;">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+          <label style="display:inline; margin-right:8px;"><strong>Status:</strong></label>
+          <select name="status" onchange="this.form.submit()">
+            <% statuses.forEach(s => { %>
+              <option value="<%= s %>" <%= invoice.status === s ? 'selected' : '' %>><%= s.charAt(0).toUpperCase() + s.slice(1) %></option>
+            <% }) %>
+          </select>
+        </form>
+      <% } else { %>
+        <p><strong>Status:</strong> <%= invoice.status %></p>
+      <% } %>
 
       <table>
         <thead><tr><th>Description</th><th>Qty</th><th>Unit Price</th><th>Amount</th></tr></thead>

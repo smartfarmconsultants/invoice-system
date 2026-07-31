@@ -28,19 +28,66 @@
     </div>
     <% } %>
 
+    <form method="GET" action="/customers" style="display:flex; gap:10px; align-items:flex-end; margin:18px 0;">
+      <div style="flex:1; min-width:200px;">
+        <label>Search</label>
+        <input type="text" name="q" placeholder="Name, phone, or email" value="<%= q %>" />
+      </div>
+      <button type="submit" style="margin-top:0;">Search</button>
+      <% if (q) { %><a class="btn secondary" style="margin-top:0;" href="/customers">Clear</a><% } %>
+    </form>
+
+    <p style="color:#5c6570; font-size:0.85rem;"><%= totalCount %> customer<%= totalCount === 1 ? '' : 's' %> found</p>
+
     <table>
-      <thead><tr><th>Name</th><th>Phone</th><th>Email</th><th>Address</th></tr></thead>
+      <thead><tr><th>Name</th><th>Phone</th><th>Email</th><th>Address</th>
+        <% if (user.role === 'admin' || user.role === 'manager') { %><th style="min-width:150px;">Actions</th><% } %>
+      </tr></thead>
       <tbody>
       <% customers.forEach(c => { %>
         <tr>
-          <td><%= c.customer_name %></td>
-          <td><%= c.phone || '-' %></td>
-          <td><%= c.email || '-' %></td>
-          <td><%= c.address || '-' %></td>
+          <% if (user.role === 'admin' || user.role === 'manager') { %>
+            <td><input form="cust-edit-<%= c.id %>" type="text" name="customer_name" value="<%= c.customer_name %>" style="width:130px;" /></td>
+            <td><input form="cust-edit-<%= c.id %>" type="text" name="phone" value="<%= c.phone || '' %>" style="width:100px;" /></td>
+            <td><input form="cust-edit-<%= c.id %>" type="email" name="email" value="<%= c.email || '' %>" style="width:140px;" /></td>
+            <td><input form="cust-edit-<%= c.id %>" type="text" name="address" value="<%= c.address || '' %>" style="width:140px;" /></td>
+            <td>
+              <button form="cust-edit-<%= c.id %>" type="submit" style="margin:0; padding:4px 10px; font-size:0.8rem;">Save</button>
+              <button form="cust-delete-<%= c.id %>" type="submit" class="btn secondary" style="margin:0; padding:4px 10px; font-size:0.8rem;" onclick="return confirm('Delete this customer? This cannot be undone.');">Delete</button>
+            </td>
+          <% } else { %>
+            <td><%= c.customer_name %></td>
+            <td><%= c.phone || '-' %></td>
+            <td><%= c.email || '-' %></td>
+            <td><%= c.address || '-' %></td>
+          <% } %>
         </tr>
       <% }) %>
       </tbody>
     </table>
+
+    <% if (user.role === 'admin' || user.role === 'manager') { %>
+      <% customers.forEach(c => { %>
+        <form id="cust-edit-<%= c.id %>" method="POST" action="/customers/<%= c.id %>/edit">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+        </form>
+        <form id="cust-delete-<%= c.id %>" method="POST" action="/customers/<%= c.id %>/delete">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+        </form>
+      <% }) %>
+    <% } %>
+
+    <% if (totalPages > 1) { %>
+      <div style="margin-top:20px; display:flex; gap:10px; align-items:center;">
+        <% if (page > 1) { %>
+          <a class="btn secondary" style="margin:0;" href="/customers?page=<%= page - 1 %>&q=<%= encodeURIComponent(q) %>">← Previous</a>
+        <% } %>
+        <span style="color:#5c6570; font-size:0.85rem;">Page <%= page %> of <%= totalPages %></span>
+        <% if (page < totalPages) { %>
+          <a class="btn secondary" style="margin:0;" href="/customers?page=<%= page + 1 %>&q=<%= encodeURIComponent(q) %>">Next →</a>
+        <% } %>
+      </div>
+    <% } %>
   </main>
   <%- include('_footer') %>
 </body>

@@ -11,24 +11,78 @@
   <main>
     <h2>Invoices</h2>
     <a class="btn" href="/invoices/new">+ New Invoice</a>
+
+    <form method="GET" action="/invoices" style="display:flex; gap:10px; align-items:flex-end; margin:18px 0; flex-wrap:wrap;">
+      <div style="flex:1; min-width:200px;">
+        <label>Search</label>
+        <input type="text" name="q" placeholder="Invoice number or customer name" value="<%= q %>" />
+      </div>
+      <div style="min-width:160px;">
+        <label>Status</label>
+        <select name="status">
+          <option value="">All statuses</option>
+          <% statuses.forEach(s => { %>
+            <option value="<%= s %>" <%= statusFilter === s ? 'selected' : '' %>><%= s.charAt(0).toUpperCase() + s.slice(1) %></option>
+          <% }) %>
+        </select>
+      </div>
+      <button type="submit" style="margin-top:0;">Filter</button>
+      <% if (q || statusFilter) { %><a class="btn secondary" style="margin-top:0;" href="/invoices">Clear</a><% } %>
+    </form>
+
+    <p style="color:#5c6570; font-size:0.85rem;"><%= totalCount %> invoice<%= totalCount === 1 ? '' : 's' %> found</p>
+
     <table>
-      <thead><tr><th>Number</th><th>Customer</th><th>Date</th><th>Status</th><th>Total</th><th></th></tr></thead>
+      <thead><tr><th>Number</th><th>Customer</th><th>Date</th><th>Status</th><th>Total</th><th style="min-width:220px;">Actions</th></tr></thead>
       <tbody>
       <% invoices.forEach(inv => { %>
         <tr>
           <td><%= inv.invoice_number %></td>
           <td><%= inv.customer_name %></td>
           <td><%= new Date(inv.invoice_date).toLocaleDateString() %></td>
-          <td><%= inv.status %></td>
+          <td>
+            <% if (user.role === 'admin' || user.role === 'manager') { %>
+              <select form="status-<%= inv.id %>" name="status" onchange="this.form.submit()" style="padding:3px 6px; font-size:0.82rem;">
+                <% statuses.forEach(s => { %>
+                  <option value="<%= s %>" <%= inv.status === s ? 'selected' : '' %>><%= s.charAt(0).toUpperCase() + s.slice(1) %></option>
+                <% }) %>
+              </select>
+            <% } else { %>
+              <%= inv.status %>
+            <% } %>
+          </td>
           <td><%= Number(inv.total).toLocaleString() %></td>
           <td>
             <a href="/invoices/<%= inv.id %>">View</a> ·
             <a href="/invoices/<%= inv.id %>/pdf">PDF</a>
+            <% if (user.role === 'admin' || user.role === 'manager') { %>
+              · <a href="/invoices/<%= inv.id %>/edit">Edit</a>
+            <% } %>
           </td>
         </tr>
       <% }) %>
       </tbody>
     </table>
+
+    <% if (user.role === 'admin' || user.role === 'manager') { %>
+      <% invoices.forEach(inv => { %>
+        <form id="status-<%= inv.id %>" method="POST" action="/invoices/<%= inv.id %>/status">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+        </form>
+      <% }) %>
+    <% } %>
+
+    <% if (totalPages > 1) { %>
+      <div style="margin-top:20px; display:flex; gap:10px; align-items:center;">
+        <% if (page > 1) { %>
+          <a class="btn secondary" style="margin:0;" href="/invoices?page=<%= page - 1 %>&q=<%= encodeURIComponent(q) %>&status=<%= statusFilter %>">← Previous</a>
+        <% } %>
+        <span style="color:#5c6570; font-size:0.85rem;">Page <%= page %> of <%= totalPages %></span>
+        <% if (page < totalPages) { %>
+          <a class="btn secondary" style="margin:0;" href="/invoices?page=<%= page + 1 %>&q=<%= encodeURIComponent(q) %>&status=<%= statusFilter %>">Next →</a>
+        <% } %>
+      </div>
+    <% } %>
   </main>
   <%- include('_footer') %>
 </body>

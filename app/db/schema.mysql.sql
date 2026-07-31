@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS customers (
 
 CREATE TABLE IF NOT EXISTS invoices (
     id              INT AUTO_INCREMENT PRIMARY KEY,
-    invoice_number  VARCHAR(30) NOT NULL UNIQUE,
+    invoice_number  VARCHAR(30) UNIQUE,
     customer_id     INT NOT NULL,
     invoice_date    DATE NOT NULL,
     due_date        DATE,

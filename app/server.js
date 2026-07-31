@@ -11,6 +11,7 @@ const dashboardRoutes = require('./routes/dashboard');
 const invoiceRoutes = require('./routes/invoices');
 const customerRoutes = require('./routes/customers');
 const userRoutes = require('./routes/users');
+const auditRoutes = require('./routes/audit');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -60,6 +61,7 @@ app.use(dashboardRoutes);
 app.use(invoiceRoutes);
 app.use(customerRoutes);
 app.use(userRoutes);
+app.use(auditRoutes);
 
 app.use((err, req, res, next) => {
   if (err.code === 'EBADCSRFTOKEN') {

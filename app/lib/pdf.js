@@ -2,13 +2,13 @@ const PDFDocument = require('pdfkit');
 const path = require('path');
 const fs = require('fs');
 const QRCode = require('qrcode');
+const { buildInvoiceReference } = require('./invoiceReference');
 
 const LETTERHEAD_PATH = path.join(__dirname, '..', 'assets', 'letterhead.png');
 
 // Reads width/height straight from a PNG's IHDR chunk (bytes 16-23), so we
 // can compute exactly how much vertical space a scaled image will occupy
-// instead of guessing with moveDown(n) — that guesswork is what caused the
-// letterhead to overlap the "Invoice #" text before.
+// instead of guessing with moveDown(n).
 function getPngDimensions(filePath) {
   const buffer = fs.readFileSync(filePath);
   return {
@@ -26,6 +26,17 @@ async function streamInvoicePdf(res, invoice, items, company) {
   res.setHeader('Content-Disposition', `attachment; filename="invoice-${invoice.invoice_number}.pdf"`);
   doc.pipe(res);
 
+  // Reserve a fixed-height footer band at the very bottom of every page so
+  // the QR code (or anything else) can never grow into the credit line —
+  // this is what caused the earlier overlap bug.
+  const footerHeight = 30;
+  const footerTopY = doc.page.height - doc.page.margins.bottom - footerHeight;
+
+  function drawFooter() {
+    doc.fontSize(8).fillColor('#999')
+      .text('Designed by STAS  ·  Powered by ∞ Infinity Champ', 50, footerTopY + 10, { width: 500, align: 'center' });
+  }
+
   // Header — use the company's real letterhead image if present, falling
   // back to a plain text header so a missing asset never breaks PDF export.
   if (fs.existsSync(LETTERHEAD_PATH)) {
@@ -35,7 +46,7 @@ async function streamInvoicePdf(res, invoice, items, company) {
     const startY = doc.y;
 
     doc.image(LETTERHEAD_PATH, doc.page.margins.left, startY, { width: pageWidth });
-    doc.y = startY + renderedHeight + 10; // exact space used by the image, plus a small gap
+    doc.y = startY + renderedHeight + 10;
 
     doc.moveTo(50, doc.y).lineTo(550, doc.y).strokeColor('#cccccc').stroke();
     doc.moveDown(1.2);
@@ -50,7 +61,8 @@ async function streamInvoicePdf(res, invoice, items, company) {
   doc.fillColor('#000').fontSize(16).text(`Invoice ${invoice.invoice_number}`, { align: 'right' });
   doc.fontSize(10)
     .text(`Date: ${new Date(invoice.invoice_date).toLocaleDateString()}`, { align: 'right' })
-    .text(`Due: ${invoice.due_date ? new Date(invoice.due_date).toLocaleDateString() : '-'}`, { align: 'right' });
+    .text(`Due: ${invoice.due_date ? new Date(invoice.due_date).toLocaleDateString() : '-'}`, { align: 'right' })
+    .text(`Status: ${invoice.status.toUpperCase()}`, { align: 'right' });
   doc.moveDown(1.5);
 
   // Bill to
@@ -103,21 +115,25 @@ async function streamInvoicePdf(res, invoice, items, company) {
   );
 
   doc.moveDown(2);
-  doc.fillColor('#000').fontSize(10).text('Scan to verify invoice:', 50, doc.y);
+  const reference = buildInvoiceReference(invoice);
+  doc.fillColor('#000').fontSize(9).text(reference.displayText, 50, doc.y);
 
-  const qrText = `Invoice: ${invoice.invoice_number}\nTotal: ${Number(invoice.total).toFixed(2)}\n${company.name}`;
-  const qrDataUrl = await QRCode.toDataURL(qrText, { margin: 1, width: 200 });
-  const qrBase64 = qrDataUrl.split(',')[1];
-  const qrBuffer = Buffer.from(qrBase64, 'base64');
+  doc.moveDown(1);
+  doc.fontSize(10).text('Scan to verify invoice:', 50, doc.y);
+
+  const qrDataUrl = await QRCode.toDataURL(reference.qrText, { margin: 1, width: 200 });
+  const qrBuffer = Buffer.from(qrDataUrl.split(',')[1], 'base64');
 
   const qrSize = 60; // small on purpose — just enough to scan cleanly
-  doc.image(qrBuffer, 200, doc.y - 12, { width: qrSize, height: qrSize });
+  const qrY = doc.y - 12;
 
-  // Credit line, pinned to the very bottom of the page regardless of how
-  // much content is above it.
-  const footerY = doc.page.height - doc.page.margins.bottom - 12;
-  doc.fontSize(8).fillColor('#999')
-    .text('Designed by STAS  ·  Powered by Infinity Champ', 50, footerY, { width: 500, align: 'center' });
+  // Guard: if the content above pushed us into (or past) the reserved
+  // footer band, clamp the QR position so it never overlaps the credit
+  // line — this is the actual fix for the overlap bug, not just a bigger gap.
+  const safeQrY = Math.min(qrY, footerTopY - qrSize - 10);
+  doc.image(qrBuffer, 200, safeQrY, { width: qrSize, height: qrSize });
+
+  drawFooter();
 
   doc.end();
 }
