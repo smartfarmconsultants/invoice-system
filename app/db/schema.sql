@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS invoices (
     subtotal        DECIMAL(12,2) NOT NULL DEFAULT 0,
     tax             DECIMAL(12,2) NOT NULL DEFAULT 0,
     total           DECIMAL(12,2) NOT NULL DEFAULT 0,
+    discount        DECIMAL(12,2) NOT NULL DEFAULT 0,
     status          VARCHAR(20) NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','sent','paid','overdue','void')),
     created_by      INTEGER NOT NULL REFERENCES users(id),
     pdf_path        VARCHAR(255),
@@ -42,6 +43,10 @@ CREATE TABLE IF NOT EXISTS invoices (
 -- nullable so it can be assigned right after the row's id is known, which is
 -- how we generate sequential INV-0001-style numbers instead of timestamps.
 ALTER TABLE invoices ALTER COLUMN invoice_number DROP NOT NULL;
+
+-- Safe to re-run: adds the discount column (a flat KES amount deducted
+-- from the invoice total, not a percentage) if it isn't already there.
+ALTER TABLE invoices ADD COLUMN IF NOT EXISTS discount DECIMAL(12,2) NOT NULL DEFAULT 0;
 
 CREATE TABLE IF NOT EXISTS invoice_items (
     id          SERIAL PRIMARY KEY,

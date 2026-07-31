@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS invoices (
     subtotal        DECIMAL(12,2) NOT NULL DEFAULT 0,
     tax             DECIMAL(12,2) NOT NULL DEFAULT 0,
     total           DECIMAL(12,2) NOT NULL DEFAULT 0,
+    discount        DECIMAL(12,2) NOT NULL DEFAULT 0,
     status          ENUM('draft','sent','paid','overdue','void') NOT NULL DEFAULT 'draft',
     created_by      INT NOT NULL,
     pdf_path        VARCHAR(255),

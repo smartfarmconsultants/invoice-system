@@ -100,7 +100,7 @@ router.get('/invoices/new', requireAuth, async (req, res) => {
 });
 
 router.post('/invoices', requireAuth, async (req, res) => {
-  const { customer_id, invoice_date, due_date, tax_rate } = req.body;
+  const { customer_id, invoice_date, due_date, tax_rate, discount } = req.body;
   const items = parseItemsFromBody(req.body);
 
   if (items.length === 0) return res.status(400).send('At least one line item is required.');
@@ -108,8 +108,10 @@ router.post('/invoices', requireAuth, async (req, res) => {
   // Unit prices are VAT-INCLUSIVE (e.g. an item priced at 1200 already contains
   // the 16% VAT — it is not added on top). "total" is simply the sum of the
   // line amounts as entered; "tax" is the VAT portion already baked into that
-  // total, extracted for display/reporting.
+  // total, extracted for display/reporting. Discount is a flat KES amount
+  // (not a percentage) deducted from the total to get the amount actually due.
   const { subtotal, tax, total } = computeTotals(items, tax_rate);
+  const discountAmount = Math.max(0, Number(discount) || 0);
 
   const client = await db.pool.connect();
   try {
@@ -121,9 +123,9 @@ router.post('/invoices', requireAuth, async (req, res) => {
     // writes, since it rides on Postgres's own id sequence rather than a
     // separately-maintained counter.
     const { rows } = await client.query(
-      `INSERT INTO invoices (customer_id, invoice_date, due_date, subtotal, tax, total, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
-      [customer_id, invoice_date, due_date || null, subtotal, tax, total, req.session.userId]
+      `INSERT INTO invoices (customer_id, invoice_date, due_date, subtotal, tax, total, discount, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`,
+      [customer_id, invoice_date, due_date || null, subtotal, tax, total, discountAmount, req.session.userId]
     );
     const invoiceId = rows[0].id;
     const invoiceNumber = `INV-${String(invoiceId).padStart(4, '0')}`;
@@ -190,12 +192,13 @@ router.get('/invoices/:id/edit', requireAuth, requireRole('admin', 'manager'), a
 });
 
 router.post('/invoices/:id/edit', requireAuth, requireRole('admin', 'manager'), async (req, res) => {
-  const { customer_id, invoice_date, due_date, tax_rate } = req.body;
+  const { customer_id, invoice_date, due_date, tax_rate, discount } = req.body;
   const items = parseItemsFromBody(req.body);
 
   if (items.length === 0) return res.status(400).send('At least one line item is required.');
 
   const { subtotal, tax, total } = computeTotals(items, tax_rate);
+  const discountAmount = Math.max(0, Number(discount) || 0);
   const invoiceId = req.params.id;
 
   const client = await db.pool.connect();
@@ -204,9 +207,9 @@ router.post('/invoices/:id/edit', requireAuth, requireRole('admin', 'manager'), 
 
     const { rowCount } = await client.query(
       `UPDATE invoices SET customer_id = $1, invoice_date = $2, due_date = $3,
-         subtotal = $4, tax = $5, total = $6, updated_at = NOW()
-       WHERE id = $7`,
-      [customer_id, invoice_date, due_date || null, subtotal, tax, total, invoiceId]
+         subtotal = $4, tax = $5, total = $6, discount = $7, updated_at = NOW()
+       WHERE id = $8`,
+      [customer_id, invoice_date, due_date || null, subtotal, tax, total, discountAmount, invoiceId]
     );
     if (rowCount === 0) throw new Error('Invoice not found');
 
@@ -260,6 +263,28 @@ router.post('/invoices/:id/status', requireAuth, requireRole('admin', 'manager')
   });
 
   res.redirect(req.get('Referer') || '/invoices');
+});
+
+// Deleting an invoice is admin-only and irreversible — this is the
+// exception to "admins and managers" for financial actions, since
+// deletion (vs. voiding) actually erases the record rather than just
+// marking its status.
+router.post('/invoices/:id/delete', requireAuth, requireRole('admin'), async (req, res) => {
+  const { rows } = await db.query('SELECT invoice_number FROM invoices WHERE id = $1', [req.params.id]);
+  if (rows.length === 0) return res.status(404).render('error', { message: 'Invoice not found.' });
+
+  await db.query('DELETE FROM invoices WHERE id = $1', [req.params.id]); // invoice_items cascade-deletes
+
+  await logAction({
+    userId: req.session.userId,
+    action: 'invoice.delete',
+    entityType: 'invoice',
+    entityId: Number(req.params.id),
+    ip: req.ip,
+    details: rows[0].invoice_number
+  });
+
+  res.redirect('/invoices');
 });
 
 router.get('/invoices/:id/pdf', requireAuth, async (req, res) => {

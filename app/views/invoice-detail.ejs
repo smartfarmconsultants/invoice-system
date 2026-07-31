@@ -17,6 +17,13 @@
     <% if (user.role === 'admin' || user.role === 'manager') { %>
       <a class="btn secondary" href="/invoices/<%= invoice.id %>/edit">Edit Invoice</a>
     <% } %>
+    <% if (user.role === 'admin') { %>
+      <form method="POST" action="/invoices/<%= invoice.id %>/delete" style="display:inline"
+        onsubmit="return confirm('Delete invoice <%= invoice.invoice_number %>? This is permanent and cannot be undone.');">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+        <button type="submit" class="btn secondary" style="background:#b3261e;">Delete Invoice</button>
+      </form>
+    <% } %>
 
     <div class="card" style="margin-top:20px;">
       <p><strong>Customer:</strong> <%= invoice.customer_name %></p>
@@ -54,7 +61,13 @@
       <p style="text-align:right; margin-top:16px;">
         Subtotal (excl. VAT): <%= Number(invoice.subtotal).toLocaleString() %><br/>
         VAT: <%= Number(invoice.tax).toLocaleString() %><br/>
-        <strong>Total (VAT inclusive): <%= Number(invoice.total).toLocaleString() %></strong>
+        <% if (Number(invoice.discount || 0) > 0) { %>
+          Total (VAT inclusive): <%= Number(invoice.total).toLocaleString() %><br/>
+          Discount: -<%= Number(invoice.discount).toLocaleString() %><br/>
+          <strong>Amount Due: <%= reference.amountDue.toLocaleString() %></strong>
+        <% } else { %>
+          <strong>Total (VAT inclusive): <%= Number(invoice.total).toLocaleString() %></strong>
+        <% } %>
       </p>
     </div>
   </main>

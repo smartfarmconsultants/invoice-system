@@ -17,24 +17,70 @@ function getPngDimensions(filePath) {
   };
 }
 
+// PDFKit's standard 14 fonts (Helvetica etc.) use WinAnsiEncoding, which
+// does not include the ∞ (U+221E) glyph — asking for it silently falls
+// back to an unrelated character (a stray quote mark in practice). Rather
+// than embed a whole extra Unicode font just for one symbol, we draw a
+// small infinity glyph as a vector shape (two touching circles), which
+// renders identically in every PDF viewer with no font dependency at all.
+function drawInfinityIcon(doc, x, y, size, color) {
+  const r = size / 4;
+  doc.save();
+  doc.lineWidth(0.9).strokeColor(color);
+  doc.circle(x + r, y, r).stroke();
+  doc.circle(x + size - r, y, r).stroke();
+  doc.restore();
+}
+
 // Streams a formatted invoice PDF straight to the HTTP response.
 // invoice: row from `invoices` joined with customer fields
 // items: rows from `invoice_items`
 async function streamInvoicePdf(res, invoice, items, company) {
-  const doc = new PDFDocument({ margin: 50 });
+  const doc = new PDFDocument({ margin: 50, autoFirstPage: true, bufferPages: true });
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `attachment; filename="invoice-${invoice.invoice_number}.pdf"`);
   doc.pipe(res);
 
   // Reserve a fixed-height footer band at the very bottom of every page so
-  // the QR code (or anything else) can never grow into the credit line —
-  // this is what caused the earlier overlap bug.
+  // nothing else can ever grow into the credit line.
   const footerHeight = 30;
   const footerTopY = doc.page.height - doc.page.margins.bottom - footerHeight;
+  // Anything drawn below this line risks colliding with the reserved
+  // footer band — used to decide when to start a fresh page.
+  const contentBottomLimit = footerTopY - 10;
 
   function drawFooter() {
-    doc.fontSize(8).fillColor('#999')
-      .text('Designed by STAS  ·  Powered by ∞ Infinity Champ', 50, footerTopY + 10, { width: 500, align: 'center' });
+    const prefix = 'Designed by STAS  ·  Powered by ';
+    const suffix = ' Infinity Champ';
+    const fontSize = 8;
+    const color = '#999';
+    doc.fontSize(fontSize).fillColor(color);
+
+    const prefixWidth = doc.widthOfString(prefix);
+    const suffixWidth = doc.widthOfString(suffix);
+    const iconSize = 8;
+    const iconGap = 3;
+    const totalWidth = prefixWidth + iconGap + iconSize + iconGap + suffixWidth;
+    const contentAreaWidth = 500;
+    const startX = 50 + (contentAreaWidth - totalWidth) / 2;
+    const textY = footerTopY + 10;
+
+    doc.text(prefix, startX, textY, { lineBreak: false });
+    const iconX = startX + prefixWidth + iconGap;
+    const iconY = textY + fontSize / 2 - 1;
+    drawInfinityIcon(doc, iconX, iconY, iconSize, color);
+    doc.text(suffix, iconX + iconSize + iconGap, textY, { lineBreak: false });
+  }
+
+  function drawTableHeader(topY) {
+    doc.fontSize(10).font('Helvetica-Bold').fillColor('#000');
+    doc.text('Description', 50, topY);
+    doc.text('Qty', 300, topY, { width: 60, align: 'right' });
+    doc.text('Unit Price', 360, topY, { width: 90, align: 'right' });
+    doc.text('Amount', 460, topY, { width: 90, align: 'right' });
+    doc.moveTo(50, topY + 15).lineTo(550, topY + 15).stroke();
+    doc.font('Helvetica');
+    return topY + 22;
   }
 
   // Header — use the company's real letterhead image if present, falling
@@ -73,40 +119,78 @@ async function streamInvoicePdf(res, invoice, items, company) {
     .text(invoice.customer_email || '');
   doc.moveDown(1.5);
 
-  // Item table header
-  const tableTop = doc.y;
-  doc.fontSize(10).font('Helvetica-Bold');
-  doc.text('Description', 50, tableTop);
-  doc.text('Qty', 300, tableTop, { width: 60, align: 'right' });
-  doc.text('Unit Price', 360, tableTop, { width: 90, align: 'right' });
-  doc.text('Amount', 460, tableTop, { width: 90, align: 'right' });
-  doc.moveTo(50, tableTop + 15).lineTo(550, tableTop + 15).stroke();
-  doc.font('Helvetica');
+  // Item table — explicitly paginated ourselves rather than relying on
+  // PDFKit's implicit auto-pagination, which behaves erratically once
+  // absolute-positioned content runs past a page's bottom margin (this
+  // was the actual cause of invoices with many line items generating a
+  // dozen near-blank, overlapping-text pages instead of a clean layout).
+  const rowHeight = 20;
+  let y = drawTableHeader(doc.y);
 
-  let y = tableTop + 22;
   items.forEach((item) => {
-    doc.fontSize(10).text(item.description, 50, y, { width: 240 });
+    if (y + rowHeight > contentBottomLimit) {
+      doc.addPage();
+      y = drawTableHeader(doc.page.margins.top);
+    }
+    doc.fontSize(10).fillColor('#000').text(item.description, 50, y, { width: 240 });
     doc.text(String(item.quantity), 300, y, { width: 60, align: 'right' });
     doc.text(Number(item.unit_price).toFixed(2), 360, y, { width: 90, align: 'right' });
     doc.text(Number(item.amount).toFixed(2), 460, y, { width: 90, align: 'right' });
-    y += 20;
+    y += rowHeight;
   });
+
+  const reference = buildInvoiceReference(invoice);
+  const hasDiscount = reference.discount > 0;
+
+  // Totals block: 3 lines normally, +2 more if there's a discount to show.
+  const totalsBlockHeight = hasDiscount ? 106 : 70;
+  if (y + totalsBlockHeight > contentBottomLimit) {
+    doc.addPage();
+    y = doc.page.margins.top;
+  }
 
   doc.moveTo(50, y + 5).lineTo(550, y + 5).stroke();
   y += 15;
 
+  doc.fillColor('#000');
   doc.text('Subtotal (excl. VAT):', 320, y, { width: 130, align: 'right' });
   doc.text(Number(invoice.subtotal).toFixed(2), 460, y, { width: 90, align: 'right' });
   y += 18;
   doc.text('VAT:', 320, y, { width: 130, align: 'right' });
   doc.text(Number(invoice.tax).toFixed(2), 460, y, { width: 90, align: 'right' });
   y += 18;
-  doc.font('Helvetica-Bold');
-  doc.text('Total (VAT inclusive):', 320, y, { width: 130, align: 'right' });
-  doc.text(Number(invoice.total).toFixed(2), 460, y, { width: 90, align: 'right' });
-  doc.font('Helvetica');
 
-  doc.y = y + 45;
+  if (hasDiscount) {
+    doc.text('Total (VAT inclusive):', 320, y, { width: 130, align: 'right' });
+    doc.text(Number(invoice.total).toFixed(2), 460, y, { width: 90, align: 'right' });
+    y += 18;
+    doc.text('Discount:', 320, y, { width: 130, align: 'right' });
+    doc.text('-' + Number(reference.discount).toFixed(2), 460, y, { width: 90, align: 'right' });
+    y += 18;
+    doc.font('Helvetica-Bold');
+    doc.text('Amount Due:', 320, y, { width: 130, align: 'right' });
+    doc.text(reference.amount, 460, y, { width: 90, align: 'right' });
+    doc.font('Helvetica');
+  } else {
+    doc.font('Helvetica-Bold');
+    doc.text('Total (VAT inclusive):', 320, y, { width: 130, align: 'right' });
+    doc.text(Number(invoice.total).toFixed(2), 460, y, { width: 90, align: 'right' });
+    doc.font('Helvetica');
+  }
+
+  // Reserve room for the whole trailing block (payment instructions +
+  // reference line + QR label + QR code + gap). If what's left on this
+  // page isn't enough, start a fresh page for this section — pushing
+  // forward onto a new page rather than ever clamping backward into
+  // content already drawn above it.
+  const trailingBlockHeight = 175;
+  if (y + 45 + trailingBlockHeight > footerTopY) {
+    doc.addPage();
+    doc.y = doc.page.margins.top;
+  } else {
+    doc.y = y + 45;
+  }
+
   doc.fontSize(9).fillColor('#555').text(
     'Payment instructions: ' + (company.paymentInstructions || 'Bank transfer — details on file.'),
     50,
@@ -115,7 +199,6 @@ async function streamInvoicePdf(res, invoice, items, company) {
   );
 
   doc.moveDown(2);
-  const reference = buildInvoiceReference(invoice);
   doc.fillColor('#000').fontSize(9).text(reference.displayText, 50, doc.y);
 
   doc.moveDown(1);
@@ -125,15 +208,26 @@ async function streamInvoicePdf(res, invoice, items, company) {
   const qrBuffer = Buffer.from(qrDataUrl.split(',')[1], 'base64');
 
   const qrSize = 60; // small on purpose — just enough to scan cleanly
-  const qrY = doc.y - 12;
+  let qrY = doc.y - 12;
 
-  // Guard: if the content above pushed us into (or past) the reserved
-  // footer band, clamp the QR position so it never overlaps the credit
-  // line — this is the actual fix for the overlap bug, not just a bigger gap.
-  const safeQrY = Math.min(qrY, footerTopY - qrSize - 10);
-  doc.image(qrBuffer, 200, safeQrY, { width: qrSize, height: qrSize });
+  // Final safety net for the rare case where payment instructions wrapped
+  // to more lines than estimated: push to a new page rather than ever
+  // overlapping. Never moves backward into already-drawn content.
+  if (qrY + qrSize + 10 > footerTopY) {
+    doc.addPage();
+    doc.fontSize(10).fillColor('#000').text('Scan to verify invoice:', 50, doc.page.margins.top);
+    qrY = doc.page.margins.top + 14;
+  }
 
-  drawFooter();
+  doc.image(qrBuffer, 200, qrY, { width: qrSize, height: qrSize });
+
+  // Draw the footer credit on every page that was generated, not just the
+  // last one.
+  const pageRange = doc.bufferedPageRange();
+  for (let i = 0; i < pageRange.count; i++) {
+    doc.switchToPage(pageRange.start + i);
+    drawFooter();
+  }
 
   doc.end();
 }
