@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Settings — Invoice System</title>
+  <link rel="stylesheet" href="/style.css" />
+  <link rel="icon" type="image/png" href="/logo-icon.png" />
+</head>
+<body>
+  <%- include('_topbar', { user }) %>
+  <main>
+    <h2>Company Settings</h2>
+    <p style="color:#5c6570; font-size:0.85rem;">
+      These details are used on every invoice PDF and as the default VAT rate for new invoices.
+    </p>
+
+    <% if (typeof saved !== 'undefined' && saved) { %>
+      <div class="credentials-box" style="background:#eef7ee; border-color:#7fb87f;">Settings saved.</div>
+    <% } %>
+    <% if (typeof error !== 'undefined' && error) { %>
+      <div class="error"><%= error %></div>
+    <% } %>
+
+    <div class="card">
+      <form method="POST" action="/settings">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+        <label>Company Name</label>
+        <input type="text" name="company_name" required value="<%= settings.company_name %>" />
+
+        <label>Address / Website</label>
+        <input type="text" name="company_address" value="<%= settings.company_address %>" />
+
+        <label>Contact Details</label>
+        <input type="text" name="company_contact" value="<%= settings.company_contact %>" />
+
+        <label>Payment Instructions</label>
+        <input type="text" name="payment_instructions" value="<%= settings.payment_instructions %>" />
+
+        <label>Default VAT Rate (%) — used to pre-fill new invoices; each invoice can still override it</label>
+        <input type="number" step="0.01" min="0" name="default_tax_rate" value="<%= Number(settings.default_tax_rate) %>" />
+
+        <button type="submit">Save Settings</button>
+      </form>
+    </div>
+
+    <p style="color:#5c6570; font-size:0.82rem; margin-top:16px;">
+      Note: the company letterhead image and logo shown on invoices are separate image files
+      (<code>app/assets/letterhead.png</code> and <code>app/public/logo-icon.png</code>) — replacing those
+      still requires uploading new files, not something this form controls.
+    </p>
+  </main>
+  <%- include('_footer') %>
+</body>
+</html>

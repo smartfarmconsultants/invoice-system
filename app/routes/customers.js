@@ -2,17 +2,14 @@ const express = require('express');
 const db = require('../db');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { logAction } = require('../db/audit');
+const { toCsv } = require('../lib/csv');
 
 const router = express.Router();
 
 const PAGE_SIZE = 15;
 
-// All authenticated roles can view customers (per spec: manager "view customer records";
-// clerks need this too to select a customer when creating an invoice).
-router.get('/customers', requireAuth, async (req, res) => {
-  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
-  const q = (req.query.q || '').trim();
-
+function buildCustomerFilters(query) {
+  const q = (query.q || '').trim();
   const conditions = [];
   const params = [];
   if (q) {
@@ -20,6 +17,14 @@ router.get('/customers', requireAuth, async (req, res) => {
     conditions.push(`(customer_name ILIKE $${params.length} OR phone ILIKE $${params.length} OR email ILIKE $${params.length})`);
   }
   const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  return { whereClause, params, q };
+}
+
+// All authenticated roles can view customers (per spec: manager "view customer records";
+// clerks need this too to select a customer when creating an invoice).
+router.get('/customers', requireAuth, async (req, res) => {
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const { whereClause, params, q } = buildCustomerFilters(req.query);
 
   const countResult = await db.query(`SELECT COUNT(*) FROM customers ${whereClause}`, params);
   const totalCount = parseInt(countResult.rows[0].count, 10);
@@ -41,6 +46,26 @@ router.get('/customers', requireAuth, async (req, res) => {
     totalPages,
     totalCount
   });
+});
+
+// CSV export — respects the same search filter as the list view.
+router.get('/customers/export.csv', requireAuth, async (req, res) => {
+  const { whereClause, params } = buildCustomerFilters(req.query);
+  const { rows } = await db.query(`SELECT * FROM customers ${whereClause} ORDER BY customer_name ASC`, params);
+
+  const columns = [
+    { label: 'Name', value: 'customer_name' },
+    { label: 'Phone', value: (r) => r.phone || '' },
+    { label: 'Email', value: (r) => r.email || '' },
+    { label: 'Address', value: (r) => r.address || '' },
+    { label: 'Created At', value: (r) => new Date(r.created_at).toISOString() }
+  ];
+
+  await logAction({ userId: req.session.userId, action: 'customer.export_csv', ip: req.ip });
+
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', `attachment; filename="customers-${new Date().toISOString().slice(0, 10)}.csv"`);
+  res.send(toCsv(columns, rows));
 });
 
 // Creating/editing customer records — admin & manager only per access rules.

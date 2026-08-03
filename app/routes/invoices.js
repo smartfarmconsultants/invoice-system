@@ -4,15 +4,19 @@ const { requireAuth, requireRole } = require('../middleware/auth');
 const { logAction } = require('../db/audit');
 const { streamInvoicePdf } = require('../lib/pdf');
 const { buildInvoiceReference } = require('../lib/invoiceReference');
+const { toCsv } = require('../lib/csv');
+const { getSettings } = require('../db/settings');
 
 const router = express.Router();
 
-const COMPANY = {
-  name: 'SmartFarm Consultants Kenya',
-  address: 'smartfarmconsultants.co.ke',
-  contact: 'Tel: +254 711 580 975 | smartfarmconsultants@gmail.com',
-  paymentInstructions: 'Bank transfer — details on file. Paybill 400200, A/C 1183282. Contact +254 711 580 975 for assistance.'
-};
+function settingsToCompany(settings) {
+  return {
+    name: settings.company_name,
+    address: settings.company_address,
+    contact: settings.company_contact,
+    paymentInstructions: settings.payment_instructions
+  };
+}
 
 const STATUSES = ['draft', 'sent', 'paid', 'overdue', 'void'];
 const PAGE_SIZE = 15;
@@ -42,17 +46,18 @@ function parseItemsFromBody(body) {
     .filter((it) => it.description && it.quantity > 0);
 }
 
-router.get('/invoices', requireAuth, async (req, res) => {
-  const isPrivileged = ['admin', 'manager'].includes(req.session.role);
-  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
-  const q = (req.query.q || '').trim();
-  const statusFilter = STATUSES.includes(req.query.status) ? req.query.status : '';
+// Shared between the list view and the CSV export so filtering behaves
+// identically in both places — exporting always matches what's on screen.
+function buildInvoiceFilters(session, query) {
+  const isPrivileged = ['admin', 'manager'].includes(session.role);
+  const q = (query.q || '').trim();
+  const statusFilter = STATUSES.includes(query.status) ? query.status : '';
 
   const conditions = [];
   const params = [];
 
   if (!isPrivileged) {
-    params.push(req.session.userId);
+    params.push(session.userId);
     conditions.push(`i.created_by = $${params.length}`);
   }
   if (q) {
@@ -65,6 +70,12 @@ router.get('/invoices', requireAuth, async (req, res) => {
   }
 
   const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  return { whereClause, params, q, statusFilter };
+}
+
+router.get('/invoices', requireAuth, async (req, res) => {
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const { whereClause, params, q, statusFilter } = buildInvoiceFilters(req.session, req.query);
 
   const countResult = await db.query(
     `SELECT COUNT(*) FROM invoices i JOIN customers c ON c.id = i.customer_id ${whereClause}`,
@@ -94,9 +105,49 @@ router.get('/invoices', requireAuth, async (req, res) => {
   });
 });
 
+// CSV export — respects the same search/status filters as the list view,
+// so "export what I'm looking at" works as expected.
+router.get('/invoices/export.csv', requireAuth, async (req, res) => {
+  const { whereClause, params } = buildInvoiceFilters(req.session, req.query);
+
+  const { rows } = await db.query(
+    `SELECT i.*, c.customer_name FROM invoices i JOIN customers c ON c.id = i.customer_id
+     ${whereClause} ORDER BY i.created_at DESC`,
+    params
+  );
+
+  const columns = [
+    { label: 'Invoice Number', value: 'invoice_number' },
+    { label: 'Customer', value: 'customer_name' },
+    { label: 'Invoice Date', value: (r) => new Date(r.invoice_date).toISOString().slice(0, 10) },
+    { label: 'Due Date', value: (r) => (r.due_date ? new Date(r.due_date).toISOString().slice(0, 10) : '') },
+    { label: 'Status', value: 'status' },
+    { label: 'Subtotal (excl. VAT)', value: (r) => Number(r.subtotal).toFixed(2) },
+    { label: 'VAT', value: (r) => Number(r.tax).toFixed(2) },
+    { label: 'Total (VAT inclusive)', value: (r) => Number(r.total).toFixed(2) },
+    { label: 'Discount', value: (r) => Number(r.discount || 0).toFixed(2) },
+    { label: 'Amount Due', value: (r) => Math.max(0, Number(r.total) - Number(r.discount || 0)).toFixed(2) },
+    { label: 'Created At', value: (r) => new Date(r.created_at).toISOString() }
+  ];
+
+  await logAction({ userId: req.session.userId, action: 'invoice.export_csv', ip: req.ip });
+
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', `attachment; filename="invoices-${new Date().toISOString().slice(0, 10)}.csv"`);
+  res.send(toCsv(columns, rows));
+});
+
 router.get('/invoices/new', requireAuth, async (req, res) => {
   const { rows: customers } = await db.query('SELECT id, customer_name FROM customers ORDER BY customer_name ASC');
-  res.render('invoice-form', { user: req.session, customers, csrfToken: req.csrfToken(), invoice: null, items: [] });
+  const settings = await getSettings();
+  res.render('invoice-form', {
+    user: req.session,
+    customers,
+    csrfToken: req.csrfToken(),
+    invoice: null,
+    items: [],
+    defaultTaxRate: Number(settings.default_tax_rate)
+  });
 });
 
 router.post('/invoices', requireAuth, async (req, res) => {
@@ -187,8 +238,16 @@ router.get('/invoices/:id/edit', requireAuth, requireRole('admin', 'manager'), a
 
   const { rows: items } = await db.query('SELECT * FROM invoice_items WHERE invoice_id = $1', [invoice.id]);
   const { rows: customers } = await db.query('SELECT id, customer_name FROM customers ORDER BY customer_name ASC');
+  const settings = await getSettings();
 
-  res.render('invoice-form', { user: req.session, customers, csrfToken: req.csrfToken(), invoice, items });
+  res.render('invoice-form', {
+    user: req.session,
+    customers,
+    csrfToken: req.csrfToken(),
+    invoice,
+    items,
+    defaultTaxRate: Number(settings.default_tax_rate)
+  });
 });
 
 router.post('/invoices/:id/edit', requireAuth, requireRole('admin', 'manager'), async (req, res) => {
@@ -309,7 +368,9 @@ router.get('/invoices/:id/pdf', requireAuth, async (req, res) => {
     ip: req.ip
   });
 
-  streamInvoicePdf(res, invoice, items, COMPANY).catch((err) => {
+  const settings = await getSettings();
+
+  streamInvoicePdf(res, invoice, items, settingsToCompany(settings)).catch((err) => {
     console.error('PDF generation failed:', err);
     if (!res.headersSent) res.status(500).send('Failed to generate PDF.');
   });

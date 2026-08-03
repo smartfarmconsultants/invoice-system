@@ -58,5 +58,10 @@ th { color: var(--muted); font-weight: 600; }
 .stat { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 18px; flex: 1; }
 .stat .num { font-size: 1.6rem; font-weight: 700; }
 .stat .label { color: var(--muted); font-size: 0.85rem; }
-.item-row { display: grid; grid-template-columns: 3fr 1fr 1fr; gap: 10px; margin-top: 8px; }
+.item-row { display: grid; grid-template-columns: 3fr 1fr 1fr auto; gap: 10px; margin-top: 8px; align-items: center; }
+.item-row .remove-row-btn {
+  background: none; border: 1px solid #e4e2db; color: #b3261e; border-radius: 6px;
+  width: 32px; height: 32px; cursor: pointer; font-size: 1rem; line-height: 1; margin-top: 0;
+}
+.item-row .remove-row-btn:hover { background: #fdecea; }
 .credentials-box { background: #fff8e1; border: 1px solid #e6c200; border-radius: 8px; padding: 14px; margin-bottom: 16px; font-family: monospace; font-size: 0.9rem; }

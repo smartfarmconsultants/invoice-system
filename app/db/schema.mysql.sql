@@ -65,3 +65,15 @@ CREATE TABLE IF NOT EXISTS audit_log (
 
 -- Note: for MySQL-hosted sessions, use `express-mysql-session` in place of
 -- connect-pg-simple in server.js (see comment there).
+
+CREATE TABLE IF NOT EXISTS app_settings (
+    id                    INT PRIMARY KEY DEFAULT 1,
+    company_name          VARCHAR(150) NOT NULL DEFAULT 'SmartFarm Consultants Kenya',
+    company_address       VARCHAR(255) NOT NULL DEFAULT 'smartfarmconsultants.co.ke',
+    company_contact       VARCHAR(255) NOT NULL DEFAULT 'Tel: +254 711 580 975 | smartfarmconsultants@gmail.com',
+    payment_instructions  TEXT NOT NULL,
+    default_tax_rate      DECIMAL(5,2) NOT NULL DEFAULT 16,
+    updated_at            TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CHECK (id = 1)
+) ENGINE=InnoDB;
+INSERT IGNORE INTO app_settings (id, payment_instructions) VALUES (1, 'Bank transfer — details on file. Paybill 400200, A/C 1183282.');

@@ -11,6 +11,7 @@
   <main>
     <h2>Invoices</h2>
     <a class="btn" href="/invoices/new">+ New Invoice</a>
+    <a class="btn secondary" href="/invoices/export.csv?q=<%= encodeURIComponent(q) %>&status=<%= statusFilter %>">Export CSV</a>
 
     <form method="GET" action="/invoices" style="display:flex; gap:10px; align-items:flex-end; margin:18px 0; flex-wrap:wrap;">
       <div style="flex:1; min-width:200px;">

@@ -68,6 +68,21 @@ CREATE TABLE IF NOT EXISTS audit_log (
     created_at  TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
+-- Single-row table holding admin-editable company info used across the
+-- app (invoice PDFs, default VAT rate, etc.), so these no longer need a
+-- code change + redeploy to update.
+CREATE TABLE IF NOT EXISTS app_settings (
+    id                    INTEGER PRIMARY KEY DEFAULT 1,
+    company_name          VARCHAR(150) NOT NULL DEFAULT 'SmartFarm Consultants Kenya',
+    company_address       VARCHAR(255) NOT NULL DEFAULT 'smartfarmconsultants.co.ke',
+    company_contact       VARCHAR(255) NOT NULL DEFAULT 'Tel: +254 711 580 975 | smartfarmconsultants@gmail.com',
+    payment_instructions  TEXT NOT NULL DEFAULT 'Bank transfer — details on file. Paybill 400200, A/C 1183282.',
+    default_tax_rate      DECIMAL(5,2) NOT NULL DEFAULT 16,
+    updated_at            TIMESTAMP NOT NULL DEFAULT NOW(),
+    CHECK (id = 1)
+);
+INSERT INTO app_settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
+
 -- session store table (used by connect-pg-simple)
 CREATE TABLE IF NOT EXISTS "session" (
     "sid"    varchar NOT NULL COLLATE "default" PRIMARY KEY,

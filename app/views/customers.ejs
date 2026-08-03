@@ -37,7 +37,10 @@
       <% if (q) { %><a class="btn secondary" style="margin-top:0;" href="/customers">Clear</a><% } %>
     </form>
 
-    <p style="color:#5c6570; font-size:0.85rem;"><%= totalCount %> customer<%= totalCount === 1 ? '' : 's' %> found</p>
+    <p style="color:#5c6570; font-size:0.85rem;">
+      <%= totalCount %> customer<%= totalCount === 1 ? '' : 's' %> found
+      &nbsp;·&nbsp; <a href="/customers/export.csv?q=<%= encodeURIComponent(q) %>">Export CSV</a>
+    </p>
 
     <table>
       <thead><tr><th>Name</th><th>Phone</th><th>Email</th><th>Address</th>
